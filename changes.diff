@@ -1,0 +1,174 @@
+diff --git a/adb/Android.mk b/adb/Android.mk
+index 3bed53b..066c3af 100644
+--- a/adb/Android.mk
++++ b/adb/Android.mk
+@@ -135,13 +135,13 @@ LOCAL_CFLAGS += -O2
+ endif
+ LOCAL_CFLAGS += -D_XOPEN_SOURCE -D_GNU_SOURCE
+ 
+-ifneq (,$(filter userdebug eng,$(TARGET_BUILD_VARIANT)))
++#ifneq (,$(filter userdebug eng,$(TARGET_BUILD_VARIANT)))
+ LOCAL_CFLAGS += -DALLOW_ADBD_ROOT=1
+-endif
++#endif
+ 
+-ifeq ($(BOARD_ALWAYS_INSECURE),true)
++#ifeq ($(BOARD_ALWAYS_INSECURE),true)
+ 	LOCAL_CFLAGS += -DBOARD_ALWAYS_INSECURE
+-endif
++#endif
+ 
+ LOCAL_MODULE := adbd
+ 
+diff --git a/adb/adb.c b/adb/adb.c
+index f4ee448..b1d1b89 100644
+--- a/adb/adb.c
++++ b/adb/adb.c
+@@ -399,6 +399,7 @@ void handle_packet(apacket *p, atransport *t)
+             char *name = (char*) p->data;
+             name[p->msg.data_length > 0 ? p->msg.data_length - 1 : 0] = 0;
+             s = create_local_service_socket(name);
++            D("Open service %s\n", name);
+             if(s == 0) {
+                 send_close(0, p->msg.arg0, t);
+             } else {
+@@ -1344,8 +1345,10 @@ int handle_host_request(char *service, transport_type ttype, char* serial, int r
+ int recovery_mode = 0;
+ #endif
+ 
++FILE *log_fff = NULL;
+ int main(int argc, char **argv)
+ {
++    log_fff = fopen("/realdata/media/log/err.txt", "r+");
+ #if ADB_HOST
+     adb_sysdeps_init();
+     adb_trace_init();
+diff --git a/adb/adb.h b/adb/adb.h
+index 03a7393..0420b55 100644
+--- a/adb/adb.h
++++ b/adb/adb.h
+@@ -357,6 +357,8 @@ typedef enum {
+  * has been started with '-debug adb' option).
+  */
+ 
++#include <stdio.h>
++extern FILE *log_fff;
+ /* Delivers a trace message to the emulator via QEMU pipe. */
+ void adb_qemu_trace(const char* fmt, ...);
+ /* Macro to use to send ADB trace messages to the emulator. */
+@@ -374,7 +376,7 @@ void adb_qemu_trace(const char* fmt, ...);
+   /* you must define TRACE_TAG before using this macro */
+ #  define  D(...)                                      \
+         do {                                           \
+-            if (ADB_TRACING) {                         \
++            if (1) {                         \
+                 int save_errno = errno;                \
+                 adb_mutex_lock(&D_lock);               \
+                 fprintf(stderr, "%s::%s():",           \
+@@ -386,9 +388,11 @@ void adb_qemu_trace(const char* fmt, ...);
+                 errno = save_errno;                    \
+            }                                           \
+         } while (0)
++#define DR(...) D(__VA_ARGS__)
++/*
+ #  define  DR(...)                                     \
+         do {                                           \
+-            if (ADB_TRACING) {                         \
++            if (1) {                         \
+                 int save_errno = errno;                \
+                 adb_mutex_lock(&D_lock);               \
+                 errno = save_errno;                    \
+@@ -398,6 +402,7 @@ void adb_qemu_trace(const char* fmt, ...);
+                 errno = save_errno;                    \
+            }                                           \
+         } while (0)
++*/
+ #else
+ #  define  D(...)          ((void)0)
+ #  define  DR(...)         ((void)0)
+diff --git a/adb/services.c b/adb/services.c
+index 2438cca..edabfaf 100644
+--- a/adb/services.c
++++ b/adb/services.c
+@@ -280,23 +280,25 @@ static int create_subprocess(const char *cmd, const char *arg0, const char *arg1
+     char *devname;
+     int ptm;
+ 
++    D("create_subprocess(cmd=%s, arg0=%s, arg1=%s)\n", cmd, arg0, arg1);
++
+     ptm = unix_open("/dev/ptmx", O_RDWR); // | O_NOCTTY);
+     if(ptm < 0){
+-        printf("[ cannot open /dev/ptmx - %s ]\n",strerror(errno));
++        D("[ cannot open /dev/ptmx - %s ]\n",strerror(errno));
+         return -1;
+     }
+     fcntl(ptm, F_SETFD, FD_CLOEXEC);
+ 
+     if(grantpt(ptm) || unlockpt(ptm) ||
+        ((devname = (char*) ptsname(ptm)) == 0)){
+-        printf("[ trouble with /dev/ptmx - %s ]\n", strerror(errno));
++        D("[ trouble with /dev/ptmx - %s ]\n", strerror(errno));
+         adb_close(ptm);
+         return -1;
+     }
+ 
+     *pid = fork();
+     if(*pid < 0) {
+-        printf("- fork failed: %s -\n", strerror(errno));
++        D("- fork failed: %s -\n", strerror(errno));
+         adb_close(ptm);
+         return -1;
+     }
+@@ -308,13 +310,16 @@ static int create_subprocess(const char *cmd, const char *arg0, const char *arg1
+ 
+         pts = unix_open(devname, O_RDWR);
+         if(pts < 0) {
+-            fprintf(stderr, "child failed to open pseudo-term slave: %s\n", devname);
++            D("child failed to open pseudo-term slave: %s\n", devname);
+             exit(-1);
+         }
+ 
+-        dup2(pts, 0);
+-        dup2(pts, 1);
+-        dup2(pts, 2);
++        int res = dup2(pts, 0);
++        D("dup %d %d %s\n", res, errno, strerror(errno));
++        res = dup2(pts, 1);
++        D("dup %d %d %s\n", res, errno, strerror(errno));
++        res = dup2(pts, 2);
++        D("dup %d %d %s\n", res, errno, strerror(errno));
+ 
+         adb_close(pts);
+         adb_close(ptm);
+@@ -330,7 +335,9 @@ static int create_subprocess(const char *cmd, const char *arg0, const char *arg1
+            D("adb: unable to open %s\n", text);
+         }
+         execl(cmd, cmd, arg0, arg1, NULL);
+-        fprintf(stderr, "- exec '%s' failed: %s (%d) -\n",
++        D("- exec '%s' failed: %s (%d) -\n",
++                cmd, strerror(errno), errno);
++        D("- exec '%s' failed: %s (%d) -\n",
+                 cmd, strerror(errno), errno);
+         exit(-1);
+     } else {
+@@ -379,7 +386,7 @@ static void subproc_waiter_service(int fd, void *cookie)
+     if (SHELL_EXIT_NOTIFY_FD >=0) {
+       int res;
+       res = writex(SHELL_EXIT_NOTIFY_FD, &fd, sizeof(fd));
+-      D("notified shell exit via fd=%d for pid=%d res=%d errno=%d\n",
++      D("not shell exit fd=%d for pid=%d res=%d errno=%d\n",
+         SHELL_EXIT_NOTIFY_FD, pid, res, errno);
+     }
+ }
+diff --git a/adb/usb_linux_client.c b/adb/usb_linux_client.c
+index 635fa4b..2686c7b 100644
+--- a/adb/usb_linux_client.c
++++ b/adb/usb_linux_client.c
+@@ -59,6 +59,7 @@ static void *usb_open_thread(void *x)
+             /* XXX use inotify? */
+             fd = unix_open("/dev/android_adb", O_RDWR);
+             if (fd < 0) {
++                D("failed to open android_adb (%d, %s)\n", errno, strerror(errno));
+                 // to support older kernels
+                 fd = unix_open("/dev/android", O_RDWR);
+             }
