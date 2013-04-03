@@ -36,6 +36,8 @@
 #include "usb_vendors.h"
 #endif
 
+#define DONT_DROP_ROOT 1
+
 #if ADB_TRACE
 ADB_MUTEX_DEFINE( D_lock );
 #endif
@@ -898,7 +900,9 @@ void build_local_name(char* target_str, size_t target_size, int server_port)
 static int should_drop_privileges() {
 #ifndef ALLOW_ADBD_ROOT
     return 1;
-#else /* ALLOW_ADBD_ROOT */
+#elif DONT_DROP_ROOT
+    return 0;
+#else
     int secure = 0;
     char value[PROPERTY_VALUE_MAX];
 
@@ -924,7 +928,7 @@ static int should_drop_privileges() {
         }
     }
     return secure;
-#endif /* ALLOW_ADBD_ROOT */
+#endif
 }
 #endif /* !ADB_HOST */
 
