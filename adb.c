@@ -1023,13 +1023,16 @@ int adb_main(int is_daemon, int server_port)
         ** "persist.adb.tcp.port" properties are not set.
         ** Otherwise start the network transport.
         */
-    property_get("service.adb.tcp.port", value, "");
+    // MultiROM: disable, property_get fails in MultiROM environment
+    /*property_get("service.adb.tcp.port", value, "");
     if (!value[0])
         property_get("persist.adb.tcp.port", value, "");
     if (sscanf(value, "%d", &port) == 1 && port > 0) {
         // listen on TCP port specified by service.adb.tcp.port property
         local_init(port);
-    } else if (access("/dev/android_adb", F_OK) == 0) {
+    } else */
+
+    if (access("/dev/android_adb", F_OK) == 0) {
         // listen on USB
         usb_init();
     } else {
@@ -1364,7 +1367,9 @@ int main(int argc, char **argv)
         recovery_mode = 1;
     }
 
-    start_device_log();
+    // MultiROM: disable, it crashes due to property_get call because
+    // the property system isn't set-up while in MultiROM
+    //start_device_log();
     D("Handling main()\n");
     return adb_main(0, DEFAULT_ADB_PORT);
 #endif
