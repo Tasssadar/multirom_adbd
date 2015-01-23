@@ -1032,7 +1032,8 @@ int adb_main(int is_daemon, int server_port)
         local_init(port);
     } else */
 
-    if (access("/dev/android_adb", F_OK) == 0) {
+    if (access(USB_ADB_PATH, F_OK) == 0 ||
+        access(USB_FFS_ADB_EP0, F_OK) == 0) {
         // listen on USB
         usb_init();
     } else {
