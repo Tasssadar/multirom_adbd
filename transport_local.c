@@ -156,7 +156,7 @@ static void *server_socket_thread(void * arg)
     int serverfd, fd;
     struct sockaddr addr;
     socklen_t alen;
-    int port = (int)arg;
+    int port = (long)arg;
 
     D("transport: server_socket_thread() starting\n");
     serverfd = -1;
@@ -238,7 +238,7 @@ static const char _start_req[]  = "start";
 /* 'ok' reply from the adb QEMUD service. */
 static const char _ok_resp[]    = "ok";
 
-    const int port = (int)arg;
+    const int port = (long)arg;
     int res, fd;
     char tmp[256];
     char con_name[32];
@@ -323,7 +323,7 @@ void local_init(int port)
 
     D("transport: local %s init\n", HOST ? "client" : "server");
 
-    if(adb_thread_create(&thr, func, (void *)port)) {
+    if(adb_thread_create(&thr, func, (void *)(long)port)) {
         fatal_errno("cannot create local socket %s thread",
                     HOST ? "client" : "server");
     }
