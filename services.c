@@ -79,7 +79,7 @@ extern int recovery_mode;
 static void recover_service(int s, void *cookie)
 {
     unsigned char buf[4096];
-    unsigned count = (unsigned) cookie;
+    unsigned count = (intptr_t) cookie;
     int fd;
 
     fd = adb_creat("/tmp/update", 0644);
@@ -149,7 +149,7 @@ void restart_tcp_service(int fd, void *cookie)
 {
     char buf[100];
     char value[PROPERTY_VALUE_MAX];
-    int port = (int)cookie;
+    int port = (intptr_t)cookie;
 
     if (port <= 0) {
         snprintf(buf, sizeof(buf), "invalid port\n");
@@ -356,7 +356,7 @@ static int create_subprocess(const char *cmd, const char *arg0, const char *arg1
 #if !ADB_HOST
 static void subproc_waiter_service(int fd, void *cookie)
 {
-    pid_t pid = (pid_t)cookie;
+    pid_t pid = (intptr_t)cookie;
 
     D("entered. fd=%d of pid=%d\n", fd, pid);
     for (;;) {
@@ -399,7 +399,7 @@ static int create_subproc_thread(const char *name)
     else {
         shell_command = SHELL_COMMAND;
     }
-    
+
     if(name) {
         ret_fd = create_subprocess(shell_command, "-c", name, &pid);
     } else {
@@ -410,7 +410,7 @@ static int create_subproc_thread(const char *name)
     sti = malloc(sizeof(stinfo));
     if(sti == 0) fatal("cannot allocate stinfo");
     sti->func = subproc_waiter_service;
-    sti->cookie = (void*)pid;
+    sti->cookie = (void*)((intptr_t)pid);
     sti->fd = ret_fd;
 
     if(adb_thread_create( &t, service_bootstrap_func, sti)){
@@ -470,7 +470,7 @@ int service_to_fd(const char *name)
     } else if(!strncmp(name, "framebuffer:", 12)) {
         ret = create_service_thread(framebuffer_service, 0);
     } else if(recovery_mode && !strncmp(name, "recover:", 8)) {
-        ret = create_service_thread(recover_service, (void*) atoi(name + 8));
+        ret = create_service_thread(recover_service, (void*) ((intptr_t)(atoi(name + 8))));
     } else if (!strncmp(name, "jdwp:", 5)) {
         ret = create_jdwp_connection_fd(atoi(name+5));
     } else if (!strncmp(name, "log:", 4)) {
@@ -502,7 +502,7 @@ int service_to_fd(const char *name)
         if (sscanf(name + 6, "%d", &port) == 0) {
             port = 0;
         }
-        ret = create_service_thread(restart_tcp_service, (void *)port);
+        ret = create_service_thread(restart_tcp_service, (void *) ((intptr_t)port));
     } else if(!strncmp(name, "usb:", 4)) {
         ret = create_service_thread(restart_usb_service, NULL);
 #endif

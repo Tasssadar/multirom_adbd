@@ -156,7 +156,7 @@ static void *server_socket_thread(void * arg)
     int serverfd, fd;
     struct sockaddr addr;
     socklen_t alen;
-    int port = (int)arg;
+    int port = (intptr_t)arg;
 
     D("transport: server_socket_thread() starting\n");
     serverfd = -1;
@@ -238,7 +238,7 @@ static const char _start_req[]  = "start";
 /* 'ok' reply from the adb QEMUD service. */
 static const char _ok_resp[]    = "ok";
 
-    const int port = (int)arg;
+    const int port = ((intptr_t)arg);
     int res, fd;
     char tmp[256];
     char con_name[32];
@@ -266,7 +266,7 @@ static const char _ok_resp[]    = "ok";
 
         /* Send the 'accept' request. */
         res = adb_write(fd, _accept_req, strlen(_accept_req));
-        if (res == strlen(_accept_req)) {
+        if (res == (int)strlen(_accept_req)) {
             /* Wait for the response. In the response we expect 'ok' on success,
              * or 'ko' on failure. */
             res = adb_read(fd, tmp, sizeof(tmp));
@@ -323,7 +323,8 @@ void local_init(int port)
 
     D("transport: local %s init\n", HOST ? "client" : "server");
 
-    if(adb_thread_create(&thr, func, (void *)port)) {
+    intptr_t arg = port;
+    if(adb_thread_create(&thr, func, (void *)arg)) {
         fatal_errno("cannot create local socket %s thread",
                     HOST ? "client" : "server");
     }
