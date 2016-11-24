@@ -26,7 +26,7 @@ LOCAL_SRC_FILES := \
 	log_service.c \
 	utils.c
 
-LOCAL_CFLAGS := -g -DADB_HOST=0 -Wall -Wno-unused-parameter
+LOCAL_CFLAGS := -g -DADB_HOST=0 -Wall -Wno-unused-parameter -Wno-error=implicit-function-declaration
 # adb can't be built without optimizations, so we enforce -O2 if no
 # other optimization flag is set - but we don't override what the global
 # flags are saying if something else is given (-Os or -O3 are useful)
